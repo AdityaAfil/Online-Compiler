@@ -1,151 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Editor from '@monaco-editor/react';
 import './App.css';
 
-// Default code templates for different languages
+// Default code templates
 const codeTemplates = {
-  javascript: `// JavaScript Example
-console.log("Hello, World!");
+  javascript: `// JavaScript
+console.log("Hello, World!");`,
 
-// Try with input
-const readline = require('readline');
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
+  python: `# Python
+print("Hello, World!")`,
 
-rl.question('', (name) => {
-  console.log(\`Hello, \${name}!\`);
-  rl.close();
-});`,
-
-  python: `# Python Example
-print("Hello, World!")
-
-# Try with input
-name = input()
-print(f"Hello, {name}!")`,
-
-  java: `// Java Example
-import java.util.Scanner;
-
+  java: `// Java
 public class Main {
     public static void main(String[] args) {
         System.out.println("Hello, World!");
-
-        // Try with input
-        Scanner scanner = new Scanner(System.in);
-        String name = scanner.nextLine();
-        System.out.println("Hello, " + name + "!");
-        scanner.close();
     }
 }`,
 
-  cpp: `// C++ Example
+  cpp: `// C++
 #include <iostream>
-#include <string>
 using namespace std;
 
 int main() {
     cout << "Hello, World!" << endl;
-
-    // Try with input
-    string name;
-    getline(cin, name);
-    cout << "Hello, " << name << "!" << endl;
-
     return 0;
 }`,
 
-  c: `// C Example
+  c: `// C
 #include <stdio.h>
 
 int main() {
     printf("Hello, World!\\n");
-
-    // Try with input
-    char name[100];
-    fgets(name, sizeof(name), stdin);
-    printf("Hello, %s", name);
-
     return 0;
 }`,
 
-  go: `// Go Example
+  go: `// Go
 package main
-
-import (
-    "fmt"
-    "bufio"
-    "os"
-)
+import "fmt"
 
 func main() {
     fmt.Println("Hello, World!")
-
-    // Try with input
-    scanner := bufio.NewScanner(os.Stdin)
-    scanner.Scan()
-    name := scanner.Text()
-    fmt.Printf("Hello, %s!\\n", name)
 }`,
 
-  rust: `// Rust Example
-use std::io;
-
+  rust: `// Rust
 fn main() {
     println!("Hello, World!");
-
-    // Try with input
-    let mut name = String::new();
-    io::stdin().read_line(&mut name).unwrap();
-    println!("Hello, {}!", name.trim());
 }`,
 
   php: `<?php
-// PHP Example
+// PHP
 echo "Hello, World!\\n";
-
-// Try with input
-$name = trim(fgets(STDIN));
-echo "Hello, $name!\\n";
 ?>`,
 
-  ruby: `# Ruby Example
-puts "Hello, World!"
-
-# Try with input
-name = gets.chomp
-puts "Hello, #{name}!"`,
-
-  typescript: `// TypeScript Example
-console.log("Hello, World!");
-
-// Try with input
-const readline = require('readline');
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
-
-rl.question('', (name: string) => {
-  console.log(\`Hello, \${name}!\`);
-  rl.close();
-});`
+  ruby: `# Ruby
+puts "Hello, World!"`
 };
 
 const languages = [
-  { value: 'javascript', label: 'JavaScript', icon: '🟨' },
-  { value: 'python', label: 'Python', icon: '🐍' },
-  { value: 'java', label: 'Java', icon: '☕' },
-  { value: 'cpp', label: 'C++', icon: '⚙️' },
-  { value: 'c', label: 'C', icon: '🔧' },
-  { value: 'go', label: 'Go', icon: '🐹' },
-  { value: 'rust', label: 'Rust', icon: '🦀' },
-  { value: 'php', label: 'PHP', icon: '🐘' },
-  { value: 'ruby', label: 'Ruby', icon: '💎' },
-  { value: 'typescript', label: 'TypeScript', icon: '🔷' }
+  { value: 'python', label: 'Python' },
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'java', label: 'Java' },
+  { value: 'cpp', label: 'C++' },
+  { value: 'c', label: 'C' },
+  { value: 'go', label: 'Go' },
+  { value: 'rust', label: 'Rust' },
+  { value: 'php', label: 'PHP' },
+  { value: 'ruby', label: 'Ruby' }
 ];
 
 function App() {
@@ -155,8 +76,25 @@ function App() {
   const [output, setOutput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [stats, setStats] = useState({ executionTime: null, memory: null, exitCode: null });
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [activeTab, setActiveTab] = useState('output');
 
-  const API_URL = 'http://localhost:5000';
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+  // Load theme
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+      setIsDarkMode(false);
+      document.body.classList.add('light-mode');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+    document.body.classList.toggle('light-mode');
+    localStorage.setItem('theme', !isDarkMode ? 'light' : 'dark');
+  };
 
   const handleLanguageChange = (e) => {
     const newLanguage = e.target.value;
@@ -170,12 +108,15 @@ function App() {
     setIsLoading(true);
     setOutput('');
     setStats({ executionTime: null, memory: null, exitCode: null });
+    setActiveTab('output');
 
     try {
       const response = await axios.post(`${API_URL}/compile`, {
         language,
         code,
         input
+      }, {
+        timeout: 15000
       });
 
       if (response.data.success) {
@@ -189,140 +130,158 @@ function App() {
         setOutput(`Error: ${response.data.error}`);
       }
     } catch (error) {
-      setOutput(
-        `Error: ${error.response?.data?.message || error.message}\n\n` +
-        `Make sure the backend server is running on ${API_URL}`
-      );
+      if (error.code === 'ECONNABORTED') {
+        setOutput('Error: Request timeout. Code execution took too long.');
+      } else {
+        setOutput(
+          `Error: ${error.response?.data?.message || error.message}\n\n` +
+          `Make sure the backend server is running on ${API_URL}`
+        );
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const getLanguageIcon = () => {
-    return languages.find(lang => lang.value === language)?.icon || '📝';
-  };
+  const hasError = output.toLowerCase().includes('error');
 
   return (
     <div className="App">
-      <div className="container">
-        <header className="header">
-          <h1>🚀 Online Code Compiler</h1>
-          <div className="header-info">
-            Multi-language code execution platform
-          </div>
-        </header>
-
-        <div className="main-content">
-          <div className="controls">
-            <div className="control-group">
-              <label htmlFor="language">Language:</label>
-              <select
-                id="language"
-                className="language-select"
-                value={language}
-                onChange={handleLanguageChange}
-              >
-                {languages.map((lang) => (
-                  <option key={lang.value} value={lang.value}>
-                    {lang.icon} {lang.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              className="run-button"
-              onClick={handleRunCode}
-              disabled={isLoading}
+      <header className="header">
+        <div className="header-left">
+          <div className="logo">CodeRunner</div>
+          <div className="language-selector">
+            <label htmlFor="language">Language</label>
+            <select
+              id="language"
+              className="language-select"
+              value={language}
+              onChange={handleLanguageChange}
             >
-              {isLoading ? (
-                <>
-                  <div className="spinner"></div>
-                  Running...
-                </>
-              ) : (
-                <>
-                  ▶️ Run Code
-                </>
-              )}
-            </button>
+              {languages.map((lang) => (
+                <option key={lang.value} value={lang.value}>
+                  {lang.label}
+                </option>
+              ))}
+            </select>
           </div>
+        </div>
+        <div className="header-right">
+          <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
+            {isDarkMode ? '☀️' : '🌙'}
+          </button>
+          <button
+            className="run-button"
+            onClick={handleRunCode}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <div className="spinner"></div>
+                Running...
+              </>
+            ) : (
+              <>
+                <span>▶</span>
+                Run
+              </>
+            )}
+          </button>
+        </div>
+      </header>
 
-          <div className="editor-section">
+      <div className="main-layout">
+        <div className="editor-panel">
+          <div className="editor-wrapper">
             <Editor
-              height="500px"
+              height="100%"
               language={language === 'cpp' ? 'cpp' : language}
               value={code}
               onChange={(value) => setCode(value || '')}
-              theme="vs-dark"
+              theme={isDarkMode ? 'vs-dark' : 'light'}
               options={{
                 fontSize: 14,
+                fontFamily: 'SF Mono, Monaco, Consolas, monospace',
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
                 automaticLayout: true,
-                tabSize: 2,
-                wordWrap: 'on',
+                tabSize: 4,
+                wordWrap: 'off',
                 lineNumbers: 'on',
-                renderLineHighlight: 'all',
+                renderLineHighlight: 'line',
                 cursorBlinking: 'smooth',
                 folding: true,
-                bracketPairColorization: { enabled: true }
+                bracketPairColorization: { enabled: true },
+                smoothScrolling: true,
+                padding: { top: 16 }
               }}
             />
           </div>
+        </div>
 
-          <div className="input-output-section">
-            <div className="input-panel">
-              <div className="panel-header">
-                📥 Input (stdin)
-              </div>
-              <textarea
-                className="input-textarea"
-                placeholder="Enter input here (if your program needs it)..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-              />
-            </div>
-
-            <div className="output-panel">
-              <div className="panel-header">
-                📤 Output
-              </div>
-              <div className="output-content">
-                {isLoading ? (
-                  <div className="loading">
-                    <div className="spinner"></div>
-                    Executing code...
-                  </div>
-                ) : output ? (
-                  <pre className={output.toLowerCase().includes('error') ? 'error-output' : 'success-output'}>
-                    {output}
-                  </pre>
-                ) : (
-                  <pre style={{ color: '#858585' }}>
-                    Click "Run Code" to see output here...
-                  </pre>
-                )}
-              </div>
-
-              {stats.executionTime !== null && (
-                <div className="stats">
-                  <div className="stat-item">
-                    <span className="stat-label">⏱️ Execution Time:</span>
-                    <span className="stat-value">{stats.executionTime}ms</span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-label">💾 Memory:</span>
-                    <span className="stat-value">{stats.memory}</span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-label">🔢 Exit Code:</span>
-                    <span className="stat-value">{stats.exitCode}</span>
-                  </div>
-                </div>
-              )}
-            </div>
+        <div className="console-panel">
+          <div className="console-tabs">
+            <button
+              className={`console-tab ${activeTab === 'input' ? 'active' : ''}`}
+              onClick={() => setActiveTab('input')}
+            >
+              Input
+            </button>
+            <button
+              className={`console-tab ${activeTab === 'output' ? 'active' : ''}`}
+              onClick={() => setActiveTab('output')}
+            >
+              Output
+            </button>
           </div>
+
+          <div className="console-content">
+            {activeTab === 'input' ? (
+              <div className="input-area">
+                <div className="input-label">Standard Input (stdin)</div>
+                <textarea
+                  className="input-textarea"
+                  placeholder="Enter input here..."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                />
+              </div>
+            ) : (
+              <div className="output-area">
+                <div className={`output-box ${hasError ? 'error' : output ? 'success' : ''}`}>
+                  {isLoading ? (
+                    <div className="loading-state">
+                      <div className="spinner"></div>
+                      Executing code...
+                    </div>
+                  ) : output ? (
+                    <pre>{output}</pre>
+                  ) : (
+                    <div className="output-placeholder">
+                      Click "Run" to see output here...
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {stats.executionTime !== null && activeTab === 'output' && (
+            <div className="stats-bar">
+              <div className="stat-item">
+                <span className="stat-label">Time:</span>
+                <span className="stat-value">{stats.executionTime}ms</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Memory:</span>
+                <span className="stat-value">{stats.memory}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Status:</span>
+                <span className="stat-value">{stats.exitCode === 0 ? 'Success' : 'Error'}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
