@@ -204,8 +204,8 @@ This project is licensed under the MIT License - feel free to use it for learnin
 ## 📧 Contact
 
 **Aditya Afil**
-- GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/yourprofile)
+- GitHub: [@Aditya Afil](https://github.com/AdityaAfil)
+- LinkedIn: [AdityaAfil](https://linkedin.com/in/AdityaAfil)
 
 ---
 
